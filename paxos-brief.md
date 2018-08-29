@@ -33,21 +33,17 @@
 ### Basic Paxos
 
 - 两阶段提交
-
 	- 阶段1：Prepare
 		- Proposer：生成新的ProposalNumber(n)
 		- Proposer：广播Prepare(n)给所有节点
 		- Acceptor：if n > minProposal，则minProposal = n，返回(acceptedProposal, acceptedValue)
-	
 	- 阶段2：Accept
 		- Proposer：当收到majority的prepare response，广播Accept(n, value)给所有节点
 		- Acceptor：if n > minProposal，则acceptedProposal = minProposal = n，acceptedValue = value，返回(minProposal)
 		- Proposer：有收到rejections时返回第一步，否则表明value被chosen
 
 - Acceptors必须持久化minProposal, acceptedProposal和acceptedValue到硬盘上
-
 - 只有Proposal知道提议是否成功，其它节点需要知道的话也需要执行自己的Proposal
-
 - 为避免多个Proposer节点发生竞争死锁的情况，每次重新启动Paxos时需要有随机的延迟
 
 ## Multi-Paxos
@@ -63,7 +59,7 @@
 
 - 发起哪个提议
 - 性能优化
-- 保证全复制
+- 信息全披露（全复制，提议通过后广播）
 - 客户端协议
 - 配置变更
 
@@ -90,10 +86,22 @@
 ### 减少Prepare请求
 
 - prepare的用处：block之前的请求，找到可能确认的提议
-- 如果已经是最新的提议，直接返回noMoreAccepted
+- 如果已经是最新的提议，直接noMoreAccepted
 - 之后的Basic Paxos可以省略Prepare环节，直接发送Accept请求
-	
 
+### 信息全披露
 
+1. 重试AcceptRPC，直到所有acceptors都成功返回
+2. 每个节点维护自己的firstUnchosenIndex，并mark已通过的提案为极大值
+3. Proposer告诉Acceptors自己的firstUnchosenIndex
+	- 如果 i < request.firstUnchosenIndex && acceptedProposal[i] = request.proposal
+	- 标记提案i为极大值
+4. Acceptor返回它的firstUnchosenIndex给Proposer，如果proposer.firstUnchosenIndex > acceptor.firstUnchosenIndex，则proposer发送Success RPC
+5. Success(index, v)请求通知acceptor：
+	- acceptedValue[index] = v
+	- acceptedProposal[index] = ∞
+	- return firstUnchosenIndex
 
+### 客户端协议
 
+和raft类似，通过唯一的command id来保证exactly-once semantics
