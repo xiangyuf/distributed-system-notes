@@ -23,7 +23,7 @@
 
 ### 心跳和超时
 - Leader必须要给Followers发送心跳来维持领导权
-- 如果Leader发送心跳的时间超时，Follower默认Leader崩溃了，Follower发起新的选
+- 如果Leader发送心跳的时间超时，Follower默认Leader崩溃了，Follower发起新的选举
 
 ## Raft过程
 
